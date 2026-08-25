@@ -9,12 +9,18 @@ import argparse
 import json
 import os
 import random
+import ssl
 import sys
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+
+try:
+    import certifi
+except ImportError:
+    certifi = None
 
 
 MODEL = "agnes-video-2.5"
@@ -24,6 +30,9 @@ DEFAULT_IMAGE_URL = (
     "91105e8d-87a1-47c9-95d5-0f22652412cd.png"
 )
 TRANSIENT_HTTP_CODES = {408, 429, 500, 502, 503, 504, 520, 522, 524}
+SSL_CONTEXT = ssl.create_default_context(
+    cafile=certifi.where() if certifi is not None else None
+)
 
 
 class HttpFailure(Exception):
@@ -52,7 +61,9 @@ def request_json(method, url, api_key, body=None, attempts=5):
             url, data=payload, headers=headers, method=method
         )
         try:
-            with urllib.request.urlopen(request, timeout=90) as response:
+            with urllib.request.urlopen(
+                request, timeout=90, context=SSL_CONTEXT
+            ) as response:
                 raw = response.read().decode("utf-8", errors="replace")
                 try:
                     return response.status, json.loads(raw)
